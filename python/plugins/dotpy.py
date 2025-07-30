@@ -15,7 +15,7 @@ class Source (object) :
         self.now = int(time.time() * 1000)
 
     def getSource (self) :
-        sourcePath = '.python/plugins/dotpy_source'
+        sourcePath = './python/plugins/dotpy_source'
         with open(sourcePath, 'r') as f:
             lines = f.readlines()
             total = len(lines)
