@@ -24,4 +24,4 @@ jobs:
 
     - name: Run script
       run: |
-        python iptv.py  # 或者根据项目内的实际主脚本名修改
+        python python/iptv.py  # 或者根据项目内的实际主脚本名修改
