@@ -1,17 +1,27 @@
 name: IPTV M3U Maker
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # 每天 UTC 时间 0 点（北京时间早上 8 点）运行一次
+  workflow_dispatch:     # 允许手动触发
 
 jobs:
-  run:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - run: |
-          pip install -r requirements.txt
-          python iptv.py
 
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: |
+        python iptv.py  # 或者根据项目内的实际主脚本名修改
