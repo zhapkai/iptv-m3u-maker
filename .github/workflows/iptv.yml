@@ -2,8 +2,8 @@ name: IPTV M3U Maker
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天 UTC 时间 0 点（北京时间早上 8 点）运行一次
-  workflow_dispatch:     # 允许手动触发
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,9 +19,18 @@ jobs:
         python-version: '3.8'
 
     - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      run: pip install -r requirements.txt
 
-    - name: Run script
+    - name: Run IPTV script
+      run: python python/iptv.py
+
+    - name: Show tv.m3u content
       run: |
-        python python/iptv.py  # 或者根据项目内的实际主脚本名修改
+        echo "tv.m3u content:"
+        cat http/tv.m3u || echo "tv.m3u not found"
+
+    - name: Upload tv.m3u as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tv.m3u
+        path: http/tv.m3u
