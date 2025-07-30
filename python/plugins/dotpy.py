@@ -24,10 +24,22 @@ class Source (object) :
             for i in range(0, total):
                 line = lines[i].strip('\n')
                 item = line.split(',', 1)
-                threads.add_task(self.detectData, title = item[0], url = item[1])
+                # threads.add_task(self.detectData, title = item[0], url = item[1])
                 # thread = threading.Thread(target = self.detectData, args = (item[0], item[1], ), daemon = True)
                 # thread.start()
                 # threads.append(thread)
+            if len(item) != 2:
+                    self.T.logger(f"格式错误，跳过：{line}")
+                    continue
+
+                title = item[0].strip()
+                url = item[1].strip()
+
+                # ✅ 跳过不是以 .m3u8 结尾的链接
+                if not url.endswith('.m3u8'):
+                    self.T.logger(f"跳过无效链接（非m3u8）: {title} - {url}")
+                    continue
+                threads.add_task(self.detectData, title=title, url=url)
             threads.wait_completion()
 
             # for t in threads:
