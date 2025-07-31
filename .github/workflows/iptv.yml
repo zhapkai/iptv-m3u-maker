@@ -34,3 +34,14 @@ jobs:
       with:
         name: tv.m3u
         path: http/tv.m3u
+
+    # ✅ 新增：提交并推送更新的 tv.m3u 到仓库
+    - name: Commit and push tv.m3u
+      run: |
+        git config --global user.email "you@example.com"
+        git config --global user.name "GitHub Actions"
+        git add http/tv.m3u
+        git commit -m "Auto update tv.m3u [bot]" || echo "No changes"
+        git push origin HEAD:${{ github.ref_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
