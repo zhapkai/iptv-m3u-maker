@@ -64,7 +64,17 @@ class Source (object) :
 
         if len(playUrlList) > 0 :
             playUrl = playUrlList[0]
-            midM3uInfo = self.T.getPage(playUrl, req)
+
+            #检查URL是否合法(必须以http开头)
+            if not playUrl.startswith("http"):
+                print(f"[跳过非法URL] {title} -> {playUrl}")
+                return
+            try:
+                midM3uInfo = self.T.getPage(playUrl, req)
+            except Exception as e:
+                print(f"[ERROR] 获取 {playUrl} 失败: {e}")
+                return
+        
 
             pattern = re.compile(r"url: '(.*?)',", re.I|re.S)
             midM3uUrlList = pattern.findall(midM3uInfo['body'])
