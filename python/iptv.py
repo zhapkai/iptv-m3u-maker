@@ -23,7 +23,7 @@ LOG_FILE = os.path.join(BASE_DIR, 'log.txt')
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, '../http'))
 
 # 全局变量
-IPTV_LIST = # 修正：这里需要初始化为空列表
+IPTV_LIST = # 修正：初始化为空列表
 LAST_UPDATE_TIME = 0
 UPDATE_INTERVAL = 6 * 3600  # 6小时更新一次
 
@@ -41,7 +41,7 @@ class Iptv:
                 return
 
             print("Starting to collect IPTV sources...")
-            new_iptv_list =
+            new_iptv_list = # 修正：初始化为空列表
 
             # 只保留 listb 插件的调用，假设它处理 iptv807.com 的源。
             # 如果 iptv807.com 实际上是由 base 插件处理的，请取消注释 base.Source() 和 base.getSource()
@@ -78,7 +78,7 @@ class Iptv:
             print(f"Total {len(IPTV_LIST)} unique IPTV sources collected and processed.")
 
     def process_iptv_list(self, raw_list):
-        processed_list =
+        processed_list = # 修正：初始化为空列表
         seen_channels = set()
 
         for item in raw_list:
