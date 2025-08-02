@@ -23,7 +23,7 @@ LOG_FILE = os.path.join(BASE_DIR, 'log.txt')
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, '../http'))
 
 # 全局变量
-IPTV_LIST =
+IPTV_LIST = # 修正：这里需要初始化为空列表
 LAST_UPDATE_TIME = 0
 UPDATE_INTERVAL = 6 * 3600  # 6小时更新一次
 
