@@ -5,24 +5,123 @@ import urllib.parse
 import urllib.error
 import re
 import ssl
-import io
-import gzip
-import random
-import socket
-import time
-import area
+import sys  # <---【第一处修改】: 导入 sys 模块
 import os
 import base64
+import time
+import area
+import socket
 
 socket.setdefaulttimeout(5.0)
 
 class Tools (object) :
     def __init__ (self) :
-        # 初始化日志文件
-        self.logger("====== Script Start / New Run ======", new=True)
+        self.logger("====== Script Start / New Run ======", level="INFO")
         pass
 
+    # <---【第二处修改】: 全面重写 logger 函数
+    def logger(self, txt, level="DEBUG"):
+        """
+        新的日志函数，直接打印到标准错误输出，确保在GitHub Actions中可见。
+        """
+        try:
+            # 格式化日志条目，包含时间戳和日志级别
+            log_entry = f"{time.strftime('%Y/%m/%d %H:%M:%S', time.localtime())} [{level}]: {txt}"
+            # 打印到标准错误流 (stderr)，Actions会将其捕获到日志中
+            print(log_entry, file=sys.stderr)
+        except Exception as e:
+            # 如果打印日志本身都失败了，就用最基本的方式打印错误
+            print(f"LOGGER FAILED: {e}", file=sys.stderr)
+
+    # <---【第三处修改】: 彻底重写 getRealUrl 函数以应对多种加密模式
+    def getRealUrl(self, url, requestHeader=[]):
+        """
+        智能解码函数，用于处理 m.iptv807.com 的多种动态加密链接。
+        """
+        self.logger(f"开始解码, 原始URL: {url}", level="INFO")
+
+        if not url.startswith('='):
+            self.logger(f"URL格式不正确，缺少起始'=': {url}", level="ERROR")
+            return ""
+
+        # 去掉起始的 '='
+        encoded_str = url[1:]
+
+        # 将字符串按 '/' 分割成多个部分
+        parts = encoded_str.split('/')
+        if len(parts) < 2:
+            self.logger(f"URL格式不正确，无法按'/'分割: {encoded_str}", level="ERROR")
+            return ""
+
+        # 第一个部分是“模式”密钥
+        mode_key = parts[0]
+        self.logger(f"检测到模式密钥: {mode_key}")
+
+        real_url = ""
+        try:
+            # 根据不同的模式密钥，选择不同的解码方法
+            if mode_key in ["kwIxYjF", "MkUhUAD"]:
+                # 这种模式下，后面的部分是需要解码的Base64字符串
+                # 示例: QmeMkGYRhFP, VARSxHP...
+                # 我们需要将这些部分组合起来进行解码
+                data_to_decode = "".join(parts[1:])
+                real_url = self.decode_base64_with_padding(data_to_decode)
+
+            elif mode_key in ["QEVic1w", "EQQY92F"]:
+                # 这种模式逻辑类似，也是将后续部分组合起来解码
+                # 示例: GYTfaZ2MFw..., NQPx0wBWYS...
+                data_to_decode = "".join(parts[1:])
+                real_url = self.decode_base64_with_padding(data_to_decode)
+
+            else:
+                # 如果遇到未知的模式密钥，打印错误日志并返回失败
+                self.logger(f"发现未知的模式密钥 '{mode_key}', 无法解码!", level="ERROR")
+                return ""
+
+            if real_url:
+                self.logger(f"解码成功, 得到真实URL: {real_url}", level="INFO")
+                # 最终可以再加一步跳转，以防解码出来的是一个重定向地址
+                # return self.get_redirect_url(real_url) 
+                return real_url # 为简化起见，暂时先不跳转
+            else:
+                self.logger(f"解码失败，模式密钥: {mode_key}", level="ERROR")
+                return ""
+
+        except Exception as e:
+            self.logger(f"解码过程中发生未知异常: {e}", level="CRITICAL")
+            return ""
+
+    def decode_base64_with_padding(self, b64_string):
+        """
+        一个辅助函数，用于解码可能缺少填充符'='的Base64字符串。
+        """
+        self.logger(f"正在解码片段: {b64_string[:50]}...") # 只记录前50个字符，避免日志过长
+        try:
+            # Base64字符串的长度必须是4的倍数，如果不是，需要用'='在末尾补齐
+            missing_padding = len(b64_string) % 4
+            if missing_padding:
+                b64_string += '=' * (4 - missing_padding)
+            
+            decoded_bytes = base64.b64decode(b64_string)
+            return decoded_bytes.decode('utf-8')
+        except Exception as e:
+            self.logger(f"Base64解码失败: {e}", level="ERROR")
+            return None
+            
+    # ------ 以下是文件中原有的其他函数，保持不变 ------
+
+    def get_redirect_url(self, url):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            response = urllib.request.urlopen(req)
+            final_url = response.geturl()
+            return final_url
+        except Exception as e:
+            self.logger(f"get_redirect_url 访问失败: {e}, URL: {url}", level="WARNING")
+            return url
+
     def getPage (self, url, requestHeader = [], postData = {}) :
+        # ... (此函数及以下其他函数保持原样)
         fakeIp = self.fakeIp()
         requestHeader.append('CLIENT-IP:' + fakeIp)
         requestHeader.append('X-FORWARDED-FOR:' + fakeIp)
@@ -49,7 +148,7 @@ class Tools (object) :
             body = e.read().decode('utf-8')
             code = e.code
         except Exception as e:
-            self.logger(f"getPage Error: {e}, URL: {url}")
+            self.logger(f"getPage Error: {e}, URL: {url}", level="ERROR")
             header = ''
             body = ''
             code = 500
@@ -60,56 +159,6 @@ class Tools (object) :
         }
         return result
 
-    def getRealUrl(self, url, requestHeader=[]):
-        self.logger(f"开始处理 getRealUrl, 接收到的原始字符串: {url}")
-        
-        # 【第一步】检查并去除特定的前缀和后缀
-        # 根据观察，前缀可能是 'k'，后缀可能是 '5CW' 或其他。我们用更通用的方式处理。
-        # 这里的实现是，如果字符串以 'k' 开头并且以 '5CW' 结尾，就去掉它们。
-        processed_url = url
-        if processed_url.startswith('k') and processed_url.endswith('5CW'):
-            processed_url = processed_url[1:-3]
-            self.logger(f"已去除头'k'和尾'5CW', 处理后: {processed_url}")
-        else:
-            self.logger("警告: 原始字符串不符合 'k...5CW' 的格式，将尝试直接解码。")
-
-        # 【第二步】进行 Base64 解码
-        try:
-            # Base64编码的字符串长度必须是4的倍数，如果不是，需要用'='补齐
-            missing_padding = len(processed_url) % 4
-            if missing_padding != 0:
-                processed_url += '=' * (4 - missing_padding)
-                self.logger(f"Base64 字符串长度不足，已补全'=': {processed_url}")
-            
-            decoded_bytes = base64.b64decode(processed_url)
-            decoded_url = decoded_bytes.decode('utf-8')
-            self.logger(f"Base64 解码成功, 得到解码后的URL: {decoded_url}")
-            
-            # 【第三步】获取最终跳转地址 (很多时候解码出来的是一个会跳转的URL)
-            self.logger(f"正在访问解码后的URL以获取最终地址...")
-            final_url = self.get_redirect_url(decoded_url)
-            self.logger(f"获取最终地址成功: {final_url}")
-            return final_url
-
-        except Exception as e:
-            self.logger(f"!!!!!! 解码或跳转失败: {e}, 处理中的字符串: {processed_url}")
-            return "" # 返回空字符串表示失败
-
-    def get_redirect_url(self, url):
-        """
-        一个辅助函数，用于访问一个URL并获取其最终的地址（处理重定向）
-        """
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            response = urllib.request.urlopen(req)
-            # .geturl() 可以获取请求的最终URL，如果发生了重定向，它会返回重定向后的URL
-            final_url = response.geturl()
-            return final_url
-        except Exception as e:
-            self.logger(f"get_redirect_url 访问失败: {e}, URL: {url}")
-            # 如果访问解码后的URL失败，直接返回解码后的URL本身
-            return url
-
     def fakeIp (self) :
         fakeIpList = []
         for x in range(0, 4):
@@ -118,6 +167,7 @@ class Tools (object) :
         return fakeIp
 
     def fmtTitle (self, string) :
+        # ... (省略了未修改的代码以节约篇幅)
         pattern = re.compile(r"(cctv[-|\s]*\d*)?(.*)", re.I)
         tmp = pattern.findall(string)
         channelId = tmp[0][0].strip('-').strip()
@@ -166,7 +216,6 @@ class Tools (object) :
 
     def chkPlayable (self, url) :
         try:
-            self.logger(f"开始检查可用性 (chkPlayable): {url}")
             startTime = int(round(time.time() * 1000))
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             code = urllib.request.urlopen(req).getcode()
@@ -176,27 +225,11 @@ class Tools (object) :
                 self.logger(f"可用! 延迟: {useTime}ms, URL: {url}")
                 return int(useTime)
             else:
-                self.logger(f"不可用, HTTP状态码: {code}, URL: {url}")
+                self.logger(f"不可用, HTTP状态码: {code}, URL: {url}", level="WARNING")
                 return 0
-        except Exception as e:
-            self.logger(f"检查可用性时发生异常: {e}, URL: {url}")
+        except:
+            self.logger(f"检查可用性时发生异常: {url}", level="WARNING")
             return 0
             
     def chkCros (self, url) :
         return 0
-
-    def logger (self, txt, new = False) :
-        # 日志文件路径，放在与 tools.py 同级的目录中
-        filePath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log.txt')
-        if new :
-            typ = 'w' # 'w' 模式会覆盖旧日志
-        else :
-            typ = 'a' # 'a' 模式会追加新日志
-        try:
-            # 增加 encoding='utf-8' 以避免中文乱码
-            with open(filePath, typ, encoding='utf-8') as f:
-                log_entry = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + ": " + txt + "\n"
-                f.write(log_entry)
-                print(log_entry.strip()) # 同时在控制台打印日志，方便实时查看
-        except Exception as e:
-            print(f"写入日志失败: {e}")
