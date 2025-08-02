@@ -12,7 +12,6 @@ import time
 import random
 import area
 import socket
-
 socket.setdefaulttimeout(5.0)
 
 class Tools (object) :
@@ -20,33 +19,28 @@ class Tools (object) :
         self.logger("====== Script Start / New Run ======", level="INFO")
         pass
 
-    # 替换 tools.py 中旧的 logger 函数
-    def logger(self, content, level='INFO'): # 使用字符串 'INFO' 作为默认值，修复 bool 错误
-        # 检查 level 是否为字符串，提供健壮性
+    # ==================== 【函数区】 ====================
+    # 我们所有的修改都集中在这里
+    # =================================================
+
+    def logger(self, content, level='INFO'):
         if not isinstance(level, str):
-            level_str = 'INFO' # 如果传入了非字符串，则使用默认值
+            level_str = 'INFO'
         else:
             level_str = level.upper()
-        
-        # 使用和您日志中一致的时间格式
         print(f"{time.strftime('%Y/%m/%d %H:%M:%S', time.localtime())} [{level_str}]: {content}")
 
-    # 替换 tools.py 中旧的 getRealUrl 函数
     def getRealUrl(self, url):
         if url.startswith("="):
             self.logger(f"开始解码, 原始URL: {url[:70]}...", level="INFO")
             try:
-                # 移除开头的'='
                 encoded_str = url[1:]
-
-                # 分割模式密钥和URL片段 (密钥是前44位, 第45位是'/', 片段从第46位开始)
                 pattern_key_encoded = encoded_str[:44]
                 url_fragment_encoded = encoded_str[45:]
                 
                 self.logger(f"检测到模式密钥: {pattern_key_encoded}", level="DEBUG")
                 self.logger(f"正在解码片段: {url_fragment_encoded[:50]}...", level="DEBUG")
 
-                # --- 增加健壮性：为Base64字符串自动补齐 '=' ---
                 def pad_base64(data):
                     missing_padding = len(data) % 4
                     if missing_padding != 0:
@@ -55,60 +49,51 @@ class Tools (object) :
 
                 pattern_key_padded = pad_base64(pattern_key_encoded)
                 fragment_padded = pad_base64(url_fragment_encoded)
-                # --- 补齐结束 ---
 
-                # 1. 对模式密钥进行 Base64 解码
                 decoded_key_bytes = base64.b64decode(pattern_key_padded)
-                
-                # 【重要修正】: 解码后的密钥是原始字节流，不一定是可读字符串。
-                # 移除下面这行导致程序崩溃的错误代码！
-                # decoded_key_str = decoded_key_bytes.decode('utf-8') 
-
-                # 2. 对URL片段进行 Base64 解码
                 decoded_fragment_bytes = base64.b64decode(fragment_padded)
                 
-                # 3. 执行异或解密
                 key_len = len(decoded_key_bytes)
                 decrypted_bytes = bytearray()
                 for i in range(len(decoded_fragment_bytes)):
                     decrypted_byte = decoded_fragment_bytes[i] ^ decoded_key_bytes[i % key_len]
                     decrypted_bytes.append(decrypted_byte)
 
-                # 4. 将解密后的字节流用 UTF-8 解码成最终的 URL 字符串
-                real_url = decrypted_bytes.decode('utf-8')
+                # ==================== 【核心修改区域开始】 ====================
+                # 我们将用下面的智能“翻译”逻辑替换掉原来单一的UTF-8解码
+
+                real_url = ""
+                try:
+                    # 1. 优先尝试用 UTF-8 解码
+                    real_url = decrypted_bytes.decode('utf-8')
+                    self.logger(f"使用 UTF-8 解码成功", level="DEBUG")
+                except UnicodeDecodeError:
+                    # 2. 如果 UTF-8 失败，马上尝试 GBK 解码
+                    self.logger(f"UTF-8 解码失败, 正在尝试使用 GBK 编码...", level="WARNING")
+                    try:
+                        real_url = decrypted_bytes.decode('gbk')
+                        self.logger(f"使用 GBK 解码成功", level="DEBUG")
+                    except Exception as gbk_e:
+                        self.logger(f"GBK 解码也失败了: {gbk_e}", level="ERROR")
+                        self.logger(f"无法将解密后的二进制内容转换为字符串。", level="ERROR")
+                        return "" # 两种编码都失败，返回空
+
+                # ==================== 【核心修改区域结束】 ====================
                 
                 self.logger(f"解码成功, 得到真实URL: {real_url[:80]}...", level="SUCCESS")
                 return real_url
 
-            except UnicodeDecodeError as e:
-                # 捕获更具体的错误，如果最终解密的URL不是UTF-8，会在这里捕获
-                self.logger(f"解码后内容非UTF-8编码: {e}", level="ERROR")
-                self.logger(f"解码失败, 模式密钥: {pattern_key_encoded}", level="ERROR")
-                return ""
             except Exception as e:
-                # 捕获其他所有异常，比如 b64decode 的 binascii.Error
-                self.logger(f"解码时发生未知错误: {e}", level="ERROR")
+                self.logger(f"解码过程中发生未知错误: {e}", level="ERROR")
                 self.logger(f"解码失败, 模式密钥: {pattern_key_encoded}", level="ERROR")
                 return ""
         else:
-            # 如果传入的不是加密URL，直接返回
             return url
-          
-    def decode_base64_with_padding(self, b64_string):
-        self.logger(f"正在解码片段: {b64_string[:50]}...")
-        try:
-            missing_padding = len(b64_string) % 4
-            if missing_padding:
-                b64_string += '=' * (4 - missing_padding)
-            
-            decoded_bytes = base64.b64decode(b64_string)
-            return decoded_bytes.decode('utf-8')
-        except Exception as e:
-            self.logger(f"Base64解码失败: {e}", level="ERROR")
-            return None
-            
+
+    # =================================================
     # ------ 以下是文件中原有的其他函数，保持不变 ------
-    
+    # =================================================
+
     def getPage (self, url, requestHeader = [], postData = {}) :
         fakeIp = self.fakeIp()
         requestHeader.append('CLIENT-IP:' + fakeIp)
@@ -220,6 +205,6 @@ class Tools (object) :
         except Exception as e:
             self.logger(f"检查可用性时发生异常: {e}, URL: {url}", level="WARNING")
             return 0
-            
+
     def chkCros (self, url) :
         return 0
