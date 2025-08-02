@@ -1,149 +1,101 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
-import re
-import sys
+import tools
+import db
 import time
+import re
 import json
-import requests
-import threading
-import traceback
-from flask import Flask, Response, request, render_template
-
-# 导入所有插件
-from plugins import base
+import os
+# from plugins import base
+# from plugins import lista
 from plugins import listb
-from plugins import dotpy
+# from plugins import dotpy
 
-# 定义文件路径
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-M3U_FILE = os.path.join(BASE_DIR, 'tv.m3u')
-LOG_FILE = os.path.join(BASE_DIR, 'log.txt')
+class Iptv (object):
+    def __init__ (self) :
+        self.T = tools.Tools()
+        self.DB = db.DataBase()
 
-# Flask 应用
-app = Flask(__name__, template_folder=os.path.join(BASE_DIR, '../http'))
+    def run(self) :
+        self.T.logger("开始抓取", True)
+        self.DB.chkTable()
 
-# 全局变量
-IPTV_LIST = # 修正：初始化为空列表
-LAST_UPDATE_TIME = 0
-UPDATE_INTERVAL = 6 * 3600  # 6小时更新一次
+        # 注释掉 base 源的抓取
+        # Base = base.Source()
+        # Base.getSource()
+        
+        # 注释掉 dotpy 源的抓取
+        # Dotpy = dotpy.Source()
+        # Dotpy.getSource()
 
-class Iptv:
-    def __init__(self):
-        self.lock = threading.Lock()
+        # 只保留 listb 源的抓取，这个源是针对 m.iptv807.com 的
+        listB = listb.Source()
+        listB.getSource()
 
-    def getSource(self):
-        global IPTV_LIST
-        global LAST_UPDATE_TIME
+        self.outPut()
+        self.outJson()
+        self.T.logger("抓取完成")
 
-        with self.lock:
-            if time.time() - LAST_UPDATE_TIME < UPDATE_INTERVAL and IPTV_LIST:
-                print("IPTV list is up-to-date, skipping update.")
-                return
+    def outPut (self) :
+        self.T.logger("正在生成m3u8文件")
+        sql = """SELECT * FROM
+            (SELECT * FROM %s WHERE online = 1 ORDER BY delay DESC) AS delay
+            GROUP BY LOWER(delay.title)
+            HAVING delay.title != '' and delay.title != 'CCTV-' AND delay.delay < 500
+            ORDER BY level ASC, length(title) ASC, title ASC
+            """ % (self.DB.table)
+        result = self.DB.query(sql)
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)).replace('python', 'http'), 'tv.m3u'), 'w') as f:
+            f.write("#EXTM3U\n")
+            for item in result :
+                className = '其他频道'
+                if item[4] == 1 :
+                    className = '中央频道'
+                elif item[4] == 2 :
+                    className = '地方频道'
+                elif item[4] == 3 :
+                    className = '地方频道'
+                elif item[4] == 7 :
+                    className = '广播频道'
+                else :
+                    className = '其他频道'
+                f.write("#EXTINF:-1, group-title=\"%s\", %s\n" % (className, item[1]))
+                f.write("%s\n" % (item[3]))
 
-            print("Starting to collect IPTV sources...")
-            new_iptv_list = # 修正：初始化为空列表
-
-            # 只保留 listb 插件的调用，假设它处理 iptv807.com 的源。
-            # 如果 iptv807.com 实际上是由 base 插件处理的，请取消注释 base.Source() 和 base.getSource()
-            # 并注释掉 listb.Source() 和 listb.getSource()。
-            try:
-                listB = listb.Source()
-                new_iptv_list.extend(listB.getSource())
-                print(f"Collected {len(listB.getSource())} sources from listb.")
-            except Exception as e:
-                print(f"Error collecting sources from listb: {e}")
-                traceback.print_exc()
-
-            # 注释掉 base 插件的调用
-            # try:
-            #     Base = base.Source()
-            #     new_iptv_list.extend(Base.getSource())
-            #     print(f"Collected {len(Base.getSource())} sources from base.")
-            # except Exception as e:
-            #     print(f"Error collecting sources from base: {e}")
-            #     traceback.print_exc()
-
-            # 注释掉 dotpy 插件的调用
-            # try:
-            #     Dotpy = dotpy.Source()
-            #     new_iptv_list.extend(Dotpy.getSource())
-            #     print(f"Collected {len(Dotpy.getSource())} sources from dotpy.")
-            # except Exception as e:
-            #     print(f"Error collecting sources from dotpy: {e}")
-            #     traceback.print_exc()
-
-            IPTV_LIST = self.process_iptv_list(new_iptv_list)
-            LAST_UPDATE_TIME = time.time()
-            self.write_m3u_file()
-            print(f"Total {len(IPTV_LIST)} unique IPTV sources collected and processed.")
-
-    def process_iptv_list(self, raw_list):
-        processed_list = # 修正：初始化为空列表
-        seen_channels = set()
-
-        for item in raw_list:
-            if not isinstance(item, dict) or 'name' not in item or 'url' not in item:
-                continue
-
-            name = item['name'].strip()
-            url = item['url'].strip()
-
-            if not name or not url:
-                continue
-
-            # 简单的去重，可以根据需求增加更复杂的去重逻辑
-            if (name, url) not in seen_channels:
-                processed_list.append(item)
-                seen_channels.add((name, url))
-        return processed_list
-
-    def write_m3u_file(self):
-        with open(M3U_FILE, 'w', encoding='utf-8') as f:
-            f.write('#EXTM3U\n')
-            for item in IPTV_LIST:
-                f.write(f'#EXTINF:-1,{item["name"]}\n')
-                f.write(f'{item["url"]}\n')
-        print(f"M3U file written to {M3U_FILE}")
-
-    def run_update_thread(self):
-        def update_loop():
-            while True:
-                self.getSource()
-                time.sleep(UPDATE_INTERVAL)
-        thread = threading.Thread(target=update_loop)
-        thread.daemon = True
-        thread.start()
-
-# Flask 路由
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/m3u')
-def get_m3u():
-    if not IPTV_LIST or time.time() - LAST_UPDATE_TIME >= UPDATE_INTERVAL:
-        # 如果列表为空或需要更新，则触发更新
-        iptv_instance.getSource()
-    
-    try:
-        with open(M3U_FILE, 'r', encoding='utf-8') as f:
-            m3u_content = f.read()
-        return Response(m3u_content, mimetype='application/x-mpegURL')
-    except FileNotFoundError:
-        return "M3U file not found. Please wait for the initial collection or check logs.", 404
-
-@app.route('/channels')
-def get_channels():
-    if not IPTV_LIST or time.time() - LAST_UPDATE_TIME >= UPDATE_INTERVAL:
-        iptv_instance.getSource()
-    return Response(json.dumps(IPTV_LIST, ensure_ascii=False, indent=4), mimetype='application/json')
-
-@app.route('/update')
-def trigger_update():
-    iptv_instance.getSource()
-    return "Update triggered. Please check logs for progress.", 200
+    def outJson (self) :
+        self.T.logger("正在生成Json文件")
+        sql = """SELECT * FROM
+            (SELECT * FROM %s WHERE online = 1 ORDER BY delay DESC) AS delay
+            GROUP BY LOWER(delay.title)
+            HAVING delay.title != '' and delay.title != 'CCTV-' AND delay.delay < 500
+            ORDER BY level ASC, length(title) ASC, title ASC
+            """ % (self.DB.table)
+        result = self.DB.query(sql)
+        fmtList = {
+            'cctv': [],
+            'local': [],
+            'other': [],
+            'radio': []
+        }
+        for item in result :
+            tmp = {
+                'title': item[1],
+                'url': item[3]
+            }
+            if item[4] == 1 :
+                fmtList['cctv'].append(tmp)
+            elif item[4] == 2 :
+                fmtList['local'].append(tmp)
+            elif item[4] == 3 :
+                fmtList['local'].append(tmp)
+            elif item[4] == 7 :
+                fmtList['radio'].append(tmp)
+            else :
+                fmtList['other'].append(tmp)
+        jsonStr = json.dumps(fmtList)
+        with open( os.path.join(os.path.dirname(os.path.abspath(__file__)).replace('python', 'http'), 'tv.json'), 'w') as f:
+            f.write(jsonStr)
 
 if __name__ == '__main__':
-    iptv_instance = Iptv()
-    iptv_instance.run_update_thread() # 启动后台更新线程
-    app.run(host='0.0.0.0', port=9527)
+    obj = Iptv()
+    obj.run()
