@@ -5,10 +5,11 @@ import urllib.parse
 import urllib.error
 import re
 import ssl
-import sys  # <---【第一处修改】: 导入 sys 模块
+import sys
 import os
 import base64
 import time
+import random  # <--- 【已修正】: 在这里补上被遗漏的 random 模块
 import area
 import socket
 
@@ -19,7 +20,6 @@ class Tools (object) :
         self.logger("====== Script Start / New Run ======", level="INFO")
         pass
 
-    # <---【第二处修改】: 全面重写 logger 函数
     def logger(self, txt, level="DEBUG"):
         """
         新的日志函数，直接打印到标准错误输出，确保在GitHub Actions中可见。
@@ -33,7 +33,6 @@ class Tools (object) :
             # 如果打印日志本身都失败了，就用最基本的方式打印错误
             print(f"LOGGER FAILED: {e}", file=sys.stderr)
 
-    # <---【第三处修改】: 彻底重写 getRealUrl 函数以应对多种加密模式
     def getRealUrl(self, url, requestHeader=[]):
         """
         智能解码函数，用于处理 m.iptv807.com 的多种动态加密链接。
@@ -60,16 +59,9 @@ class Tools (object) :
         real_url = ""
         try:
             # 根据不同的模式密钥，选择不同的解码方法
-            if mode_key in ["kwIxYjF", "MkUhUAD"]:
-                # 这种模式下，后面的部分是需要解码的Base64字符串
-                # 示例: QmeMkGYRhFP, VARSxHP...
+            if mode_key in ["kwIxYjF", "MkUhUAD", "QEVic1w", "EQQY92F"]:
+                # 这些模式下，后面的部分是需要解码的Base64字符串
                 # 我们需要将这些部分组合起来进行解码
-                data_to_decode = "".join(parts[1:])
-                real_url = self.decode_base64_with_padding(data_to_decode)
-
-            elif mode_key in ["QEVic1w", "EQQY92F"]:
-                # 这种模式逻辑类似，也是将后续部分组合起来解码
-                # 示例: GYTfaZ2MFw..., NQPx0wBWYS...
                 data_to_decode = "".join(parts[1:])
                 real_url = self.decode_base64_with_padding(data_to_decode)
 
@@ -121,7 +113,6 @@ class Tools (object) :
             return url
 
     def getPage (self, url, requestHeader = [], postData = {}) :
-        # ... (此函数及以下其他函数保持原样)
         fakeIp = self.fakeIp()
         requestHeader.append('CLIENT-IP:' + fakeIp)
         requestHeader.append('X-FORWARDED-FOR:' + fakeIp)
@@ -167,7 +158,6 @@ class Tools (object) :
         return fakeIp
 
     def fmtTitle (self, string) :
-        # ... (省略了未修改的代码以节约篇幅)
         pattern = re.compile(r"(cctv[-|\s]*\d*)?(.*)", re.I)
         tmp = pattern.findall(string)
         channelId = tmp[0][0].strip('-').strip()
