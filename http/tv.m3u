@@ -11,16 +11,18 @@ http://painelvj.com.br:1935/tvnbrasil/tvnbrasil.sdp/live.m3u8
 http://media4.tripsmarter.com:1935/LiveTV/KTVHD/chunklist_w363623166.m3u8
 #EXTINF:-1, group-title="其他频道", OneTV
 http://82.212.74.2:8000/live/7308.m3u8
+#EXTINF:-1, group-title="其他频道", Rudaw
+https://svs.itworkscdn.net/rudawlive/rudawlive.smil/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", TVNet
 http://player.tvnet.lv/stream/amlst:61659/chunklist_w1822312625_b528000_pd892000.m3u8
+#EXTINF:-1, group-title="其他频道", HighTV
+http://live.streams.ovh:1935/hightv/hightv/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", News24
 http://tv.balkanweb.com:8081/news24/livestream/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", TVINES
 http://liveabr2.sambatech.com.br/abr/acerpTvINESABR_d360fbbfbf3e5e59a31cf89ec45eb3dc/livestreamabr.m3u8
 #EXTINF:-1, group-title="其他频道", 花花公子蒙古
 http://spacetv.in/stream/WUQP6BVK17/56.m3u8
-#EXTINF:-1, group-title="其他频道", BadenTV
-http://badentv-stream2.siebnich.info/rtplive/btv.stream/live.m3u8
 #EXTINF:-1, group-title="其他频道", Canale7
 http://wms.shared.streamshow.it:1935/canale7/canale7/live.m3u8
 #EXTINF:-1, group-title="其他频道", KTVPlus
@@ -31,12 +33,18 @@ http://wms.shared.streamshow.it:1935/supertv/supertv/live.m3u8
 http://live.streams.ovh:1935/tvcreta/tvcreta/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", TVTorun
 http://217.173.176.107:1935/live/ngrp:tvk.stream_all/master.m3u8
-#EXTINF:-1, group-title="其他频道", US-CBSN
-http://cbsnhls-i.akamaihd.net/hls/live/264710/CBSN_mdialog/prodstream/master.m3u8
 #EXTINF:-1, group-title="其他频道", 100%News
 http://85.238.112.40:8810/hls_sec/239.33.16.32-.m3u8
 #EXTINF:-1, group-title="其他频道", E-Parana
 http://200.189.113.201/hls/tve.m3u8
+#EXTINF:-1, group-title="其他频道", NovyjMir
+http://stream.studio360.tv/nw/nw_576p/playlist.m3u8
+#EXTINF:-1, group-title="其他频道", RigaTV24
+http://player.tvnet.lv/live/amlst:11/playlist.m3u8
+#EXTINF:-1, group-title="其他频道", TROSoyuz
+http://live2.mediacdn.ru/sr1/tro/playlist.m3u8
+#EXTINF:-1, group-title="其他频道", Cool103.7
+http://ar.solumedia.com.ar:1935/cool/hd/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", ExtremaTV
 http://livestreamcdn.net:1935/ExtremaTV/ExtremaTV/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", HimlenTV7
@@ -85,6 +93,8 @@ http://192.99.38.174:1935/litustv/ngrp:litustv_all/playlist.m3u8
 http://app.live.112.events/hls/112hd_mid/index.m3u8
 #EXTINF:-1, group-title="其他频道", 112Ukraine(Opt-2)
 http://app.live.112.events/hls-ua/112hd_mid/index.m3u8
+#EXTINF:-1, group-title="其他频道", Astrakhan24(Opt-2)
+http://streaming.astrakhan.ru/astrakhan24/index.m3u8
 #EXTINF:-1, group-title="其他频道", BeachTV-PanamaCity
 http://media4.tripsmarter.com:1935/LiveTV/BTVHD/chucklist.m3u8
 #EXTINF:-1, group-title="其他频道", KOMO4News(Seattle)
@@ -99,6 +109,10 @@ http://media4.tripsmarter.com:1935/LiveTV/MTVHD/playlist.m3u8
 http://stream.jccc.edu:1935/Cablestream/livestream/playlist.m3u8
 #EXTINF:-1, group-title="其他频道", DistrictofColumbiaNetwork
 http://video.oct.dc.gov/out/u/DCN.m3u8
+#EXTINF:-1, group-title="广播频道", 51RadioTV
+http://wms.shared.streamshow.it:80/canale51/canale51/playlist.m3u8
+#EXTINF:-1, group-title="广播频道", RadioIglesias
+http://wms.shared.streamshow.it/visualradio/mp4:visualradio/chunklist.m3u8
 #EXTINF:-1, group-title="广播频道", ABCRadioSydney
 http://live-radio02.mediahubaustralia.com/2LRW/aac/master.m3u8
 #EXTINF:-1, group-title="广播频道", ABCRadioNational
