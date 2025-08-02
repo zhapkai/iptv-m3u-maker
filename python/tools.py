@@ -12,12 +12,14 @@ import socket
 import time
 import area
 import os
-import base64  # <---【第一处修改】: 导入base64库
+import base64
 
 socket.setdefaulttimeout(5.0)
 
 class Tools (object) :
     def __init__ (self) :
+        # 初始化日志文件
+        self.logger("====== Script Start / New Run ======", new=True)
         pass
 
     def getPage (self, url, requestHeader = [], postData = {}) :
@@ -46,7 +48,8 @@ class Tools (object) :
             header = e.headers
             body = e.read().decode('utf-8')
             code = e.code
-        except:
+        except Exception as e:
+            self.logger(f"getPage Error: {e}, URL: {url}")
             header = ''
             body = ''
             code = 500
@@ -57,28 +60,55 @@ class Tools (object) :
         }
         return result
 
-    # <---【第二处修改】: 替换为正确的 getRealUrl 函数
     def getRealUrl(self, url, requestHeader=[]):
-        """
-        对输入的字符串进行Base64解码，还原为真实的URL。
-        这个函数专门用于处理 m.iptv807.com 的加密链接。
-        """
+        self.logger(f"开始处理 getRealUrl, 接收到的原始字符串: {url}")
+        
+        # 【第一步】检查并去除特定的前缀和后缀
+        # 根据观察，前缀可能是 'k'，后缀可能是 '5CW' 或其他。我们用更通用的方式处理。
+        # 这里的实现是，如果字符串以 'k' 开头并且以 '5CW' 结尾，就去掉它们。
+        processed_url = url
+        if processed_url.startswith('k') and processed_url.endswith('5CW'):
+            processed_url = processed_url[1:-3]
+            self.logger(f"已去除头'k'和尾'5CW', 处理后: {processed_url}")
+        else:
+            self.logger("警告: 原始字符串不符合 'k...5CW' 的格式，将尝试直接解码。")
+
+        # 【第二步】进行 Base64 解码
         try:
             # Base64编码的字符串长度必须是4的倍数，如果不是，需要用'='补齐
-            missing_padding = len(url) % 4
+            missing_padding = len(processed_url) % 4
             if missing_padding != 0:
-                url += '=' * (4 - missing_padding)
+                processed_url += '=' * (4 - missing_padding)
+                self.logger(f"Base64 字符串长度不足，已补全'=': {processed_url}")
             
-            # 将字符串从 Base64 解码成 bytes
-            decoded_bytes = base64.b64decode(url)
+            decoded_bytes = base64.b64decode(processed_url)
+            decoded_url = decoded_bytes.decode('utf-8')
+            self.logger(f"Base64 解码成功, 得到解码后的URL: {decoded_url}")
             
-            # 将 bytes 再解码成 utf-8 字符串 (即真实的URL)
-            realUrl = decoded_bytes.decode('utf-8')
+            # 【第三步】获取最终跳转地址 (很多时候解码出来的是一个会跳转的URL)
+            self.logger(f"正在访问解码后的URL以获取最终地址...")
+            final_url = self.get_redirect_url(decoded_url)
+            self.logger(f"获取最终地址成功: {final_url}")
+            return final_url
+
         except Exception as e:
-            # 如果解码失败，打印错误信息并返回空字符串
-            self.logger(f"Base64解码失败: {e}, 输入: {url}")
-            realUrl = ""
-        return realUrl
+            self.logger(f"!!!!!! 解码或跳转失败: {e}, 处理中的字符串: {processed_url}")
+            return "" # 返回空字符串表示失败
+
+    def get_redirect_url(self, url):
+        """
+        一个辅助函数，用于访问一个URL并获取其最终的地址（处理重定向）
+        """
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            response = urllib.request.urlopen(req)
+            # .geturl() 可以获取请求的最终URL，如果发生了重定向，它会返回重定向后的URL
+            final_url = response.geturl()
+            return final_url
+        except Exception as e:
+            self.logger(f"get_redirect_url 访问失败: {e}, URL: {url}")
+            # 如果访问解码后的URL失败，直接返回解码后的URL本身
+            return url
 
     def fakeIp (self) :
         fakeIpList = []
@@ -86,28 +116,6 @@ class Tools (object) :
             fakeIpList.append(str(int(random.uniform(0, 255))))
         fakeIp = '.'.join(fakeIpList)
         return fakeIp
-
-    def fmtCookie (self, string) :
-        result = re.sub(r"path\=\/.", "", string)
-        result = re.sub(r"(\S*?)\=deleted.", "", result)
-        result = re.sub(r"expires\=(.*?)GMT;", "", result)
-        result = re.sub(r"domain\=(.*?)tv.", "", result)
-        result = re.sub(r"httponly", "", result)
-        result = re.sub(r"\s", "", result)
-        return result
-
-    def urlencode(self, str) :
-        reprStr = repr(str).replace(r'\x', '%')
-        return reprStr[1:-1]
-
-    def gzdecode(self, data) :
-        try:
-            compressedstream = io.StringIO(data)
-            gziper = gzip.GzipFile(fileobj = compressedstream)
-            html = gziper.read()
-            return html
-        except :
-            return data
 
     def fmtTitle (self, string) :
         pattern = re.compile(r"(cctv[-|\s]*\d*)?(.*)", re.I)
@@ -150,7 +158,6 @@ class Tools (object) :
         result['title'] = re.sub(pattern, "", result['title'])
         Area = area.Area()
         result['level'] = Area.classify(str(result['id']) + str(result['title']))
-        # Radio
         pattern = re.compile(r"(radio|fm)", re.I)
         tmp = pattern.findall(result['title'])
         if len(tmp) > 0 :
@@ -159,27 +166,37 @@ class Tools (object) :
 
     def chkPlayable (self, url) :
         try:
+            self.logger(f"开始检查可用性 (chkPlayable): {url}")
             startTime = int(round(time.time() * 1000))
-            # 设置一个合理的User-Agent，有些服务器会拒绝不带User-Agent的请求
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             code = urllib.request.urlopen(req).getcode()
             if code == 200 :
                 endTime = int(round(time.time() * 1000))
                 useTime = endTime - startTime
+                self.logger(f"可用! 延迟: {useTime}ms, URL: {url}")
                 return int(useTime)
             else:
+                self.logger(f"不可用, HTTP状态码: {code}, URL: {url}")
                 return 0
-        except:
+        except Exception as e:
+            self.logger(f"检查可用性时发生异常: {e}, URL: {url}")
             return 0
             
     def chkCros (self, url) :
         return 0
 
     def logger (self, txt, new = False) :
-        filePath = os.path.join(os.path.dirname(os.path.abspath(__file__)).replace('python', 'http'), 'log.txt')
+        # 日志文件路径，放在与 tools.py 同级的目录中
+        filePath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log.txt')
         if new :
-            typ = 'w'
+            typ = 'w' # 'w' 模式会覆盖旧日志
         else :
-            typ = 'a'
-        with open(filePath, typ, encoding='utf-8') as f:
-            f.write(time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + ": " + txt + "\r\n")
+            typ = 'a' # 'a' 模式会追加新日志
+        try:
+            # 增加 encoding='utf-8' 以避免中文乱码
+            with open(filePath, typ, encoding='utf-8') as f:
+                log_entry = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + ": " + txt + "\n"
+                f.write(log_entry)
+                print(log_entry.strip()) # 同时在控制台打印日志，方便实时查看
+        except Exception as e:
+            print(f"写入日志失败: {e}")
