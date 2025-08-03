@@ -48,4 +48,4 @@ class IPTV:
 
 
 if __name__ == '__main__':
-    IPTV().start()```
+    IPTV().start()
