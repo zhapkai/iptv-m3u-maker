@@ -2,7 +2,7 @@
 import logging
 import os
 import sys
-import json  # 确保导入 json 模块
+import json
 
 class Tools:
     def __init__(self):
@@ -23,7 +23,6 @@ class Tools:
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-    # ################### 新增的方法 ###################
     def getConfig(self):
         """
         读取并解析项目根目录下的 config.json 文件。
@@ -45,11 +44,10 @@ class Tools:
         except Exception as e:
             self.logger.error(f"读取配置文件时发生未知错误: {e}")
             return {}
-    # #################################################
 
     def getChannel(self, name, id, tvg_id):
         return {"name": name, "id": id, "tvg_id": tvg_id}
 
     def generateM3u(self, channels):
         # 这是一个占位方法，我们后面会实现它
-        pass```
+        pass
