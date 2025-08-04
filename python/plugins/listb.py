@@ -1,81 +1,113 @@
-```python
-# coding:utf-8
-import requests
-import re
-import base64
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import tools
 import time
+import re
+import db
+import threading
 
-class Listb:
-    def __init__(self, T):
-        # ################### 新增的诊断代码 ###################
-        print("!!! DEBUG: Listb 插件的 __init__ 方法已执行。")
-        # ######################################################
-        self.T = T
-        self.name = "listb"
-        self.baseUrl = "http://m.iptv807.com"
+class Source (object) :
 
-    def getRealUrl(self, id):
-        url = self.baseUrl + "/player.html?id=" + id
-        self.T.logger.info(f"正在从播放页面获取真实地址: {url}")
-        try:
-            res = requests.get(url, timeout=10)
-            res.encoding = "utf-8"
-            if res.status_code == 200:
-                vkey_match = re.search(r'var vkey = "(.*?)"', res.text)
-                if vkey_match:
-                    vkey = vkey_match.group(1)
-                    self.T.logger.info(f"成功匹配到 vkey: {vkey}")
-                    decoded_url = base64.b64decode(vkey).decode("utf-8")
-                    self.T.logger.info(f"解密后的地址: {decoded_url}")
-                    return decoded_url
-                else:
-                    self.T.logger.warning("在播放页面未找到 vkey。")
-            else:
-                self.T.logger.warning(f"访问播放页面失败，状态码: {res.status_code}")
-        except Exception as e:
-            self.T.logger.error(f"获取真实地址时发生错误: {e}")
-        return None
+    def __init__ (self):
+        self.T = tools.Tools()
+        self.now = int(time.time() * 1000)
+        self.siteUrl = str('http://m.iptv807.com/')
 
-    def start(self, config):
-        # ################### 新增的诊断代码 ###################
-        print("!!! DEBUG: Listb 插件的 start() 方法已执行。")
-        self.T.logger.info("初始化 listb 插件...")
-        # ######################################################
+    def getSource (self) :
+        urlList = []
 
-        channels = []
-        try:
-            self.T.logger.info(f"开始抓取主页: {self.baseUrl}")
-            res = requests.get(self.baseUrl, timeout=10)
-            res.encoding = "utf-8"
-            if res.status_code == 200:
-                self.T.logger.info("主页抓取成功。")
-                category_links = re.findall(r'<a href="(/list\.html\?id=\d+)">', res.text)
-                self.T.logger.info(f"在主页上找到 {len(category_links)} 个分类页面。")
-                
-                if not category_links:
-                    self.T.logger.warning("!!! 警告: 未在主页上找到任何分类链接。请检查主页HTML结构和正则表达式。")
-                    self.T.logger.info(f"主页HTML内容(前500字节): {res.text[:500]}")
+        url = self.siteUrl
+        req = [
+            'user-agent: Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Mobile Safari/537.36',
+        ]
+        res = self.T.getPage(url, req)
 
-                for link in category_links:
-                    category_url = self.baseUrl + link
-                    self.T.logger.info(f"正在处理分类页面: {category_url}")
-                    try:
-                        cat_res = requests.get(category_url, timeout=10)
-                        cat_res.encoding = "utf-8"
-                        if cat_res.status_code == 200:
-                            channel_matches = re.findall(r'<a href="play\.html\?id=(\d+)">\s*<img[^>]*>\s*<span>(.*?)</span>', cat_res.text)
-                            self.T.logger.info(f"在 {category_url} 中找到 {len(channel_matches)} 个频道。")
-                            for match in channel_matches:
-                                channel_id, channel_name = match
-                                channels.append(self.T.getChannel(channel_name, channel_id, self.name))
-                        else:
-                            self.T.logger.warning(f"访问分类页面失败: {category_url}, 状态码: {cat_res.status_code}")
-                    except Exception as e:
-                        self.T.logger.error(f"处理分类页面时发生错误 {category_url}: {e}")
-                    time.sleep(1)
-            else:
-                self.T.logger.error(f"抓取主页失败, 状态码: {res.status_code}")
-        except Exception as e:
-            self.T.logger.error(f"执行listb插件时发生严重错误: {e}")
+        if res['code'] == 200 :
+            pattern = re.compile(r"<li><a href=\"(.*?)\" data-ajax=\"false\">.*?<\/a><\/li>", re.I|re.S)
+            postList = pattern.findall(res['body'])
 
-        return channels
+            for post in postList :
+                url = self.siteUrl + post
+                req = [
+                    'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36',
+                ]
+                res = self.T.getPage(url, req)
+
+                if res['code'] == 200 :
+                    pattern = re.compile(r"<li><a href=\"(.*?)\" data-ajax=\"false\">(.*?)<\/a><\/li>", re.I|re.S)
+                    channelList = pattern.findall(res['body'])
+                    threads = []
+
+                    for channel in channelList :
+                        channelUrl = self.siteUrl + channel[0]
+                        thread = threading.Thread(target = self.detectData, args = (channel[1], channelUrl, ), daemon = True)
+                        thread.start()
+                        threads.append(thread)
+
+                    for t in threads:
+                        t.join()
+
+                else :
+                    pass # MAYBE later :P
+
+    def detectData (self, title, url) :
+        req = [
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36',
+        ]
+
+        info = self.T.fmtTitle(title)
+
+        playInfo = self.T.getPage(url, req)
+        pattern = re.compile(r"<option value=\"(.*?)\">.*?<\/option>", re.I|re.S)
+        playUrlList = pattern.findall(playInfo['body'])
+
+        if len(playUrlList) > 0 :
+            playUrl = playUrlList[0]
+            midM3uInfo = self.T.getPage(playUrl, req)
+
+            pattern = re.compile(r"url: '(.*?)',", re.I|re.S)
+            midM3uUrlList = pattern.findall(midM3uInfo['body'])
+            if len(midM3uUrlList) > 0 :
+                midM3uUrl = midM3uUrlList[0]
+
+                if midM3uUrl != '' :
+                    m3u = self.T.getRealUrl(midM3uUrl)
+
+                    try :
+                        m3u.index('migu.php?token=')
+                    except :
+                        if m3u != '' :
+                            netstat = self.T.chkPlayable(m3u)
+                        else :
+                            netstat = 0
+
+                        if netstat > 0 :
+                            cros = 1 if self.T.chkCros(m3u) else 0
+                            data = {
+                                'title'  : str(info['id']) if info['id'] != '' else str(info['title']),
+                                'url'    : str(m3u),
+                                'quality': str(info['quality']),
+                                'delay'  : netstat,
+                                'level'  : str(info['level']),
+                                'cros'   : cros,
+                                'online' : 1,
+                                'udTime' : self.now,
+                            }
+                            self.addData(data)
+                            self.T.logger('正在分析[ %s ]: %s' % (str(info['id']) + str(info['title']), m3u))
+                        else :
+                            pass # MAYBE later :P
+
+
+    def addData (self, data) :
+        DB = db.DataBase()
+        sql = "SELECT * FROM %s WHERE url = '%s'" % (DB.table, data['url'])
+        result = DB.query(sql)
+
+        if len(result) == 0 :
+            data['enable'] = 1
+            DB.insert(data)
+        else :
+            id = result[0][0]
+            DB.edit(id, data)
