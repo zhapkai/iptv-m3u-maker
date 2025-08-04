@@ -1,17 +1,26 @@
-# coding:utf-8
 import os
+import logging
 import importlib
-from tools import Tools
-
-# ################### 新增的诊断代码 ###################
-print("!!! DEBUG: 文件 iptv.py 已开始执行。")
-# ######################################################
+import tools
 
 class IPTV:
     def __init__(self):
-        self.T = Tools()
+        """
+        初始化 IPTV 类，设置日志记录器、频道列表和根目录。
+        """
+        self.logger = tools.setup_logger()
+        self.channel_list = []
+        # 获取项目根目录 (iptv.py 文件的上一级的上一级目录)
+        self.root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        def start(self):
+    def start(self):
+        """
+        核心方法，用于启动整个流程：
+        1. 读取配置文件。
+        2. 根据配置加载并运行启用的插件。
+        3. 收集所有插件返回的频道。
+        4. 保存为 m3u 文件。
+        """
         print("!!! DEBUG: IPTV.start() 方法已开始执行。")
         self.logger.info(f"iptv-m3u-maker 开始运行。")
         
@@ -29,11 +38,12 @@ class IPTV:
             for plugin_name in enabled_plugins:
                 try:
                     self.logger.info(f"正在加载插件: {plugin_name}")
+                    # 动态导入插件模块
                     plugin_module = importlib.import_module(f"plugins.{plugin_name}")
                     
                     # 检查插件是否有 start 方法
                     if hasattr(plugin_module, 'start') and callable(getattr(plugin_module, 'start')):
-                        # 调用插件的 start 方法，并传入 logger 和配置
+                        # 调用插件的 start 方法，并传入 logger 和 config
                         new_channels = plugin_module.start(self.logger, config)
                         if new_channels:
                             self.channel_list.extend(new_channels)
@@ -54,6 +64,34 @@ class IPTV:
         # 生成 m3u 文件
         self.save_m3u_file()
 
+    def save_m3u_file(self):
+        """
+        将收集到的频道列表保存到项目根目录的 iptv.m3u 文件中。
+        """
+        # 定义输出文件路径在项目的根目录
+        output_file_path = os.path.join(self.root_dir, 'iptv.m3u')
+        
+        self.logger.info(f"总共获取到 {len(self.channel_list)} 个频道。")
+
+        if not self.channel_list:
+            self.logger.warning("没有可用的频道来生成 M3U 文件。")
+            # 即使没有频道，也创建一个空文件或带有标题的文件
+            with open(output_file_path, 'w', encoding='utf-8') as f:
+                f.write('#EXTM3U\n')
+            self.logger.info(f"已在项目根目录创建空的 M3U 文件: {output_file_path}")
+            return
+
+        self.logger.info(f"正在生成 M3U 文件: {output_file_path}")
+
+        with open(output_file_path, 'w', encoding='utf-8') as f:
+            f.write('#EXTM3U\n')
+            for channel in self.channel_list:
+                f.write(f'#EXTINF:-1 tvg-id="{channel["id"]}" tvg-name="{channel["name"]}" tvg-logo="{channel["logo"]}" group-title="{channel["group"]}",{channel["name"]}\n')
+                f.write(f'{channel["url"]}\n')
+        
+        self.logger.info("M3U 文件生成成功！")
+
 
 if __name__ == '__main__':
+    print("!!! DEBUG: 文件 iptv.py 已开始执行。")
     IPTV().start()
