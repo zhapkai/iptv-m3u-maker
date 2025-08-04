@@ -1,5 +1,11 @@
 import threading
 import time
+import sys
+import os
+
+# 添加 plugins 目录到模块搜索路径
+sys.path.append(os.path.join(os.path.dirname(__file__), 'plugins'))
+
 from tools import Tools
 from listb import Source as ListbSource
 from db import DataBase
@@ -12,7 +18,6 @@ class Iptv(object):
     def run(self):
         self.T.logger('start', 'w')
         self.DB.chkTable()
-        # 只调用 listb.py 的直播源爬取
         ListbSource().getSource()
         self.outPut()
         self.outJson()
