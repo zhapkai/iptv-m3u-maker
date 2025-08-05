@@ -77,8 +77,8 @@ class Source(object):
             self.T.logger(f"Found {len(playUrlList)} play URLs in {url}")
 
             if len(playUrlList) > 0:
-                # 使用相对路径，基于 working-directory: python
-                file_path = 'encrypted_urls.txt'
+                # 使用根目录的相对路径
+                file_path = '../encrypted_urls.txt'
                 self.T.logger(f"Attempting to write to: {file_path}")
                 try:
                     with open(file_path, 'a', encoding='utf-8') as f:
