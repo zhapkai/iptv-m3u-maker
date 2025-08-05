@@ -189,11 +189,12 @@ class Tools(object):
         return 0
 
     def logger(self, txt, new=False):
-        filePath = 'log.txt'  # 确保在当前工作目录
+        filePath = 'log.txt'  # 相对于 working-directory
         try:
             typ = 'w' if new else 'a'
             with open(filePath, typ, encoding='utf-8') as f:
                 f.write(time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + ": " + txt + "\n")
-            self.logger(f"Log written to {filePath}: {txt}", False)  # 递归记录，确保写入
+            # 移除递归调用，仅打印一次以调试
+            print(f"Log written: {txt}")  # 控制台输出作为确认
         except Exception as e:
-            print(f"Failed to write log: {str(e)}")  # 打印到控制台作为备用
+            print(f"Failed to write log: {str(e)}")  # 仅打印错误，不递归
