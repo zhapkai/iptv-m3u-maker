@@ -77,13 +77,18 @@ class Source(object):
             self.T.logger(f"Found {len(playUrlList)} play URLs in {url}")
 
             if len(playUrlList) > 0:
-                # 使用当前工作目录的绝对路径
                 file_path = os.path.join(os.getcwd(), 'encrypted_urls.txt')
-                with open(file_path, 'a', encoding='utf-8') as f:
-                    for playUrl in playUrlList:
-                        if playUrl.startswith('='):  # 仅保存加密数据
-                            f.write(f"{playUrl}\n")
-                            self.T.logger(f"Saved encrypted URL for {info['title']}: {playUrl}")
+                self.T.logger(f"Attempting to write to: {file_path}")
+                try:
+                    with open(file_path, 'a', encoding='utf-8') as f:
+                        for playUrl in playUrlList:
+                            if playUrl.startswith('='):  # 仅保存加密数据
+                                f.write(f"{playUrl}\n")
+                                self.T.logger(f"Saved encrypted URL for {info['title']}: {playUrl}")
+                    self.T.logger(f"Successfully saved encrypted URLs to {file_path}")
+                except Exception as e:
+                    self.T.logger(f"Failed to write to {file_path}: {str(e)}")
+                self.T.logger(f"Encrypted URLs saved to {file_path}")
         except Exception as e:
             self.T.logger(f"Error in detectData for {title}, {url}: {str(e)}")
 
