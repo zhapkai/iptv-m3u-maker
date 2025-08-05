@@ -19,8 +19,7 @@ class Iptv(object):
         self.T.logger('start', 'w')
         self.DB.chkTable()
         ListbSource().getSource()
-        self.outPut()
-        self.outJson()
+        self.T.logger('Encrypted URLs saved to encrypted_urls.txt. Decryption required to proceed.')
         self.T.logger('done')
 
     def outPut(self):
