@@ -77,7 +77,9 @@ class Source(object):
             self.T.logger(f"Found {len(playUrlList)} play URLs in {url}")
 
             if len(playUrlList) > 0:
-                file_path = os.path.join(os.getcwd(), 'encrypted_urls.txt')
+                # 使用工作目录的绝对路径
+                working_dir = os.path.abspath(os.getcwd())
+                file_path = os.path.join(working_dir, 'encrypted_urls.txt')
                 self.T.logger(f"Attempting to write to: {file_path}")
                 try:
                     with open(file_path, 'a', encoding='utf-8') as f:
