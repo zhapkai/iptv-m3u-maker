@@ -39,7 +39,15 @@ jobs:
             python/tv.json
             python/log.txt
 
+      - name: Check directory after run
+        run: ls -l python/ || echo "Directory check failed"
+        working-directory: python
+        if: always()
 
+      - name: Run decryption
+        run: python decrypt.py
+        working-directory: python
+        if: success()
 
       - name: Upload decrypted files
         uses: actions/upload-artifact@v4
