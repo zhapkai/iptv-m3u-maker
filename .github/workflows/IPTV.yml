@@ -12,8 +12,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: List directory structure
-        run: ls -R  # 调试：显示目录结构
+      - name: List directory structure (before)
+        run: ls -la
+        working-directory: python
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,7 +28,11 @@ jobs:
 
       - name: Run IPTV crawler
         run: python iptv.py
-        working-directory: python  # 运行 python 目录下的 iptv.py
+        working-directory: python
+
+      - name: List directory structure (after)
+        run: ls -la
+        working-directory: python
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -39,15 +44,7 @@ jobs:
             python/tv.json
             python/log.txt
 
-      - name: Check directory after run
-        run: ls -l python/ || echo "Directory check failed"
-        working-directory: python
-        if: always()
 
-      - name: Run decryption
-        run: python decrypt.py
-        working-directory: python
-        if: success()
 
       - name: Upload decrypted files
         uses: actions/upload-artifact@v4
@@ -59,4 +56,4 @@ jobs:
       - name: Display log content (debug)
         run: cat log.txt || echo "No log file found"
         working-directory: python
-        if: always()  # 无论成功与否都运行
+        if: always()
