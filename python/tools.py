@@ -12,7 +12,7 @@ import socket
 import time
 import os
 
-socket.setdefaulttimeout(5.0)
+socket.setdefaulttimeout(10.0)  # 增加超时时间到 10 秒
 
 class Tools(object):
     def __init__(self):
@@ -24,7 +24,11 @@ class Tools(object):
         requestHeader.append('X-FORWARDED-FOR:' + fakeIp)
 
         if postData == {}:
-            request = urllib.request.Request(url)
+            try:
+                request = urllib.request.Request(url)
+            except ValueError as e:
+                self.logger(f"Invalid URL error in getPage: {url}, {str(e)}")
+                return {'code': 400, 'header': '', 'body': ''}
         elif isinstance(postData, str):
             request = urllib.request.Request(url, postData)
         else:
@@ -39,15 +43,17 @@ class Tools(object):
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
-            response = urllib.request.urlopen(request, context=ctx)
+            response = urllib.request.urlopen(request, context=ctx, timeout=10.0)
             header = response.headers
-            body = response.read().decode('utf-8')
+            body = response.read().decode('utf-8', errors='ignore')
             code = response.code
         except urllib.error.HTTPError as e:
+            self.logger(f"HTTPError in getPage: {url}, code: {e.code}")
             header = e.headers
-            body = e.read().decode('utf-8')
+            body = e.read().decode('utf-8', errors='ignore')
             code = e.code
-        except:
+        except Exception as e:
+            self.logger(f"Exception in getPage: {url}, {str(e)}")
             header = ''
             body = ''
             code = 500
@@ -71,10 +77,12 @@ class Tools(object):
             headerCon = x.replace(headerType + ':', '')
             request.add_header(headerType, headerCon)
         try:
-            response = urllib.request.urlopen(request)
+            response = urllib.request.urlopen(request, timeout=10.0)
             realUrl = response.geturl()
-        except:
+        except Exception as e:
+            self.logger(f"Exception in getRealUrl: {url}, {str(e)}")
             realUrl = ""
+        
         return realUrl
 
     def fakeIp(self):
@@ -154,7 +162,6 @@ class Tools(object):
         pattern = re.compile(r"\[\d+\*\d+\]", re.I)
         result['title'] = re.sub(pattern, "", result['title'])
 
-        # 临时替代 area.py 的分类逻辑
         if result['id'].startswith('CCTV'):
             result['level'] = 1
         elif 'radio' in result['title'].lower() or 'fm' in result['title'].lower():
@@ -167,21 +174,26 @@ class Tools(object):
     def chkPlayable(self, url):
         try:
             startTime = int(round(time.time() * 1000))
-            code = urllib.request.urlopen(url).getcode()
+            code = urllib.request.urlopen(url, timeout=10.0).getcode()
             if code == 200:
                 endTime = int(round(time.time() * 1000))
                 useTime = endTime - startTime
                 return int(useTime)
             else:
                 return 0
-        except:
+        except Exception as e:
+            self.logger(f"Exception in chkPlayable: {url}, {str(e)}")
             return 0
 
     def chkCros(self, url):
         return 0
 
     def logger(self, txt, new=False):
-        filePath = 'log.txt'  # 写入当前目录
-        typ = 'w' if new else 'a'
-        with open(filePath, typ, encoding='utf-8') as f:
-            f.write(time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + ": " + txt + "\n")
+        filePath = 'log.txt'  # 确保在当前工作目录
+        try:
+            typ = 'w' if new else 'a'
+            with open(filePath, typ, encoding='utf-8') as f:
+                f.write(time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + ": " + txt + "\n")
+            self.logger(f"Log written to {filePath}: {txt}", False)  # 递归记录，确保写入
+        except Exception as e:
+            print(f"Failed to write log: {str(e)}")  # 打印到控制台作为备用
