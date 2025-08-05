@@ -77,7 +77,8 @@ class Source(object):
             self.T.logger(f"Found {len(playUrlList)} play URLs in {url}")
 
             if len(playUrlList) > 0:
-                file_path = os.path.join(os.path.dirname(__file__), '..', 'encrypted_urls.txt')  # 相对 python 目录
+                # 使用当前工作目录的绝对路径
+                file_path = os.path.join(os.getcwd(), 'encrypted_urls.txt')
                 with open(file_path, 'a', encoding='utf-8') as f:
                     for playUrl in playUrlList:
                         if playUrl.startswith('='):  # 仅保存加密数据
