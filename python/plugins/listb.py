@@ -77,44 +77,12 @@ class Source(object):
             self.T.logger(f"Found {len(playUrlList)} play URLs in {url}")
 
             if len(playUrlList) > 0:
-                playUrl = playUrlList[0]
-                # 确保文件路径正确（相对于 python 目录）
-                file_path = os.path.join(os.path.dirname(__file__), 'encrypted_urls.txt')
+                file_path = os.path.join(os.path.dirname(__file__), '..', 'encrypted_urls.txt')  # 相对 python 目录
                 with open(file_path, 'a', encoding='utf-8') as f:
-                    f.write(f"{playUrl}\n")
-                self.T.logger(f"Saved encrypted URL for {info['title']}: {playUrl}")
-
-                # 注释掉后续处理，等待解密
-                # midM3uInfo = self.T.getPage(playUrl, req)
-                # pattern = re.compile(r"url: '(.*?)',", re.I|re.S)
-                # midM3uUrlList = pattern.findall(midM3uInfo['body'])
-                # if len(midM3uUrlList) > 0:
-                #     midM3uUrl = midM3uUrlList[0]
-                #     if midM3uUrl != '':
-                #         m3u = self.T.getRealUrl(midM3uUrl)
-                #         try:
-                #             m3u.index('migu.php?token=')
-                #         except:
-                #             if m3u != '':
-                #                 netstat = self.T.chkPlayable(m3u)
-                #             else:
-                #                 netstat = 0
-                #             if netstat > 0:
-                #                 cros = 1 if self.T.chkCros(m3u) else 0
-                #                 data = {
-                #                     'title': str(info['id']) if info['id'] != '' else str(info['title']),
-                #                     'url': str(m3u),
-                #                     'quality': str(info['quality']),
-                #                     'delay': netstat,
-                #                     'level': str(info['level']),
-                #                     'cros': cros,
-                #                     'online': 1,
-                #                     'udTime': self.now,
-                #                 }
-                #                 self.addData(data)
-                #                 self.T.logger('正在分析[ %s ]: %s' % (str(info['id']) + str(info['title']), m3u))
-                #             else:
-                #                 pass
+                    for playUrl in playUrlList:
+                        if playUrl.startswith('='):  # 仅保存加密数据
+                            f.write(f"{playUrl}\n")
+                            self.T.logger(f"Saved encrypted URL for {info['title']}: {playUrl}")
         except Exception as e:
             self.T.logger(f"Error in detectData for {title}, {url}: {str(e)}")
 
