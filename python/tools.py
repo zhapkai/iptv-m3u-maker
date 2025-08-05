@@ -189,7 +189,7 @@ class Tools(object):
         return 0
 
     def logger(self, txt, new=False):
-        file_path = 'log.txt'
+        file_path = '../log.txt'
         try:
             typ = 'w' if new else 'a'
             with open(file_path, typ, encoding='utf-8') as f:
